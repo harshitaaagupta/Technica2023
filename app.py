@@ -17,7 +17,7 @@ key_path = 'C:\\dev\\Projects\\APIKeys\\technica-cloud-key.json'
 storage_client = storage.Client.from_service_account_json(key_path)
 
 bucket_name = 'applecloud'
-file_name = 'apple.jsonl'
+file_name = 'raapl20220924.htm'
 
 # Split
 # text_splitter = RecursiveCharacterTextSplitter(
@@ -45,12 +45,12 @@ def check_bucket_file_access(bucket_name, file_name):
 
         # Try to access the file
         blob = bucket.blob(file_name)
-        blob.download_as_text()  # You can use download_to_filename() if it's a binary file
 
         return True
     except Exception as e:
         print(f"Error: {e}")
         return False
+
 
 @app.route('/')
 def check_access():
