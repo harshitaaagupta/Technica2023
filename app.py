@@ -8,49 +8,63 @@ from langchain.chat_models import ChatOpenAI
 from langchain.chains import RetrievalQA
 import os
 from flask_cors import CORS
+from google.cloud import storage 
+import json 
 
-os.environ["OPENAI_API_KEY"] = ""
+#os.environ["OPENAI_API_KEY"] = ""
+key_path = 'C:\dev\Projects\API Keys'
+storage_client = storage.Client.from_service_account_json(key_path)
 
-# Document loader
-loader = PyPDFDirectoryLoader(path='../10-K')
-data = loader.load()
+bucket_name = 'apple-file'
+file_name = 'apple.jsonl'
+
+#Load the jsonl content from Google Cloud Storage
+bucket = storage_client.get_bucket(bucket_name)
+blob = bucket.blob(file_name)
+json_content = blob.download_as_string()
+data = json.loads(json_content)
+
 
 # Split
-text_splitter = RecursiveCharacterTextSplitter(
-    chunk_size=4000, chunk_overlap=0)
-all_splits = text_splitter.split_documents(data)
+# text_splitter = RecursiveCharacterTextSplitter(
+#     chunk_size=4000, chunk_overlap=0)
+# all_splits = text_splitter.split_documents(data)
 
-# Store
-vectorstore = Chroma.from_documents(
-    documents=all_splits, embedding=OpenAIEmbeddings())
+# # Store
+# vectorstore = Chroma.from_documents(
+#     documents=all_splits, embedding=OpenAIEmbeddings())
 
-# Initialize the ChatOpenAI model
-llm = ChatOpenAI(model_name="gpt-4", temperature=0.7,
-                 max_tokens=500, verbose=True)
+# # Initialize the ChatOpenAI model
+# llm = ChatOpenAI(model_name="gpt-4", temperature=0.7,
+#                  max_tokens=500, verbose=True)
 
 app = Flask(__name__)
 CORS(app)
 
-@app.route('/create-footnotes', methods=['POST'])
-def create_draft():
-    query = request.json.get('query')
-    template = request.json.get('template')
+@app.route('/')
+def test_bucket_connection():
+    try:
+        # Create a client using the key file
+        storage_client = storage.Client.from_service_account_json(key_path)
 
-    if not template:
-        return jsonify({"error": "Template parameter is missing!"}), 400
+        # Get the bucket
+        bucket = storage_client.get_bucket(bucket_name)
 
-    # Build prompt using the provided template
-    QA_CHAIN_PROMPT = PromptTemplate(
-        input_variables=["context", "question"], template=template)
+        # Get the blob (file)
+        blob = bucket.blob(file_name)
 
-    # Run chain
-    qa_chain = RetrievalQA.from_chain_type(llm,
-                                           retriever=vectorstore.as_retriever(),
-                                           chain_type_kwargs={"prompt": QA_CHAIN_PROMPT})
+        # Download the JSON content as a string
+        json_content = blob.download_as_string()
 
-    result = qa_chain({"query": query})
-    return jsonify(result["result"])
+        # Parse the JSON data
+        data = json.loads(json_content)
 
+        # If we reach this point, the connection and data retrieval were successful
+        return "OK"
+
+    except Exception as e:
+        # If there was an error, print the error message
+        return f"Error: {str(e)}
 
 if __name__ == '__main__':
     app.run(debug=True)
