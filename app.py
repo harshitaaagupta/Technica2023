@@ -12,18 +12,12 @@ from google.cloud import storage
 import json 
 
 #os.environ["OPENAI_API_KEY"] = ""
-key_path = 'C:\dev\Projects\API Keys'
+key_path = 'C:\\dev\\Projects\\APIKeys\\technica-cloud-key.json'
+
 storage_client = storage.Client.from_service_account_json(key_path)
 
-bucket_name = 'apple-file'
+bucket_name = 'applecloud'
 file_name = 'apple.jsonl'
-
-#Load the jsonl content from Google Cloud Storage
-bucket = storage_client.get_bucket(bucket_name)
-blob = bucket.blob(file_name)
-json_content = blob.download_as_string()
-data = json.loads(json_content)
-
 
 # Split
 # text_splitter = RecursiveCharacterTextSplitter(
@@ -41,30 +35,30 @@ data = json.loads(json_content)
 app = Flask(__name__)
 CORS(app)
 
-@app.route('/')
-def test_bucket_connection():
+def check_bucket_file_access(bucket_name, file_name):
     try:
-        # Create a client using the key file
-        storage_client = storage.Client.from_service_account_json(key_path)
+        # Create a client to access Google Cloud Storage
+        client = storage.Client()
 
-        # Get the bucket
-        bucket = storage_client.get_bucket(bucket_name)
+        # Access the specified bucket
+        bucket = client.get_bucket(bucket_name)
 
-        # Get the blob (file)
+        # Try to access the file
         blob = bucket.blob(file_name)
+        blob.download_as_text()  # You can use download_to_filename() if it's a binary file
 
-        # Download the JSON content as a string
-        json_content = blob.download_as_string()
-
-        # Parse the JSON data
-        data = json.loads(json_content)
-
-        # If we reach this point, the connection and data retrieval were successful
-        return "OK"
-
+        return True
     except Exception as e:
-        # If there was an error, print the error message
-        return f"Error: {str(e)}
+        print(f"Error: {e}")
+        return False
+
+@app.route('/')
+def check_access():
+    if check_bucket_file_access(bucket_name, file_name):
+        return "OK"
+    else:
+        return "Access to file failed."
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.debug = True
+    app.run()
