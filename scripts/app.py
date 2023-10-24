@@ -9,31 +9,53 @@ from langchain.chains import RetrievalQA
 import os
 from flask_cors import CORS
 from google.cloud import storage 
-import json 
 
-#os.environ["OPENAI_API_KEY"] = ""
+
+# Set OpenAI API key as an environment variable
+#os.environ["OPENAI_API_KEY"] = "your-openai-api-key"
+
 key_path = 'C:\\dev\\Projects\\APIKeys\\technica-cloud-key.json'
-
 storage_client = storage.Client.from_service_account_json(key_path)
+
 
 bucket_name = 'applecloud'
 file_name = 'raapl20220924.htm'
 
-# Split
-# text_splitter = RecursiveCharacterTextSplitter(
-#     chunk_size=4000, chunk_overlap=0)
-# all_splits = text_splitter.split_documents(data)
 
-# # Store
-# vectorstore = Chroma.from_documents(
-#     documents=all_splits, embedding=OpenAIEmbeddings())
+# Load documents from specified directory
+loader = PyPDFDirectoryLoader(path='path/to/your/pdf/directory')
+data = loader.load()
 
-# # Initialize the ChatOpenAI model
-# llm = ChatOpenAI(model_name="gpt-4", temperature=0.7,
-#                  max_tokens=500, verbose=True)
+# Initialize text splitter with specified chunk size and overlap
+text_splitter = RecursiveCharacterTextSplitter(
+    chunk_size=4000, chunk_overlap=0)
+all_splits = text_splitter.split_documents(data)
+
+# Create a vector store from the split documents using OpenAI embeddings
+vectorstore = Chroma.from_documents(
+    documents=all_splits, embedding=OpenAIEmbeddings())
+
+# Initialize ChatOpenAI model with specified parameters
+llm = ChatOpenAI(model_name="gpt-4", temperature=0.7,
+                 max_tokens=500, verbose=True)
 
 app = Flask(__name__)
 CORS(app)
+def check_bucket_file_access(bucket_name, file_name):
+    try:
+        # Create a client to access Google Cloud Storage
+        client = storage.Client()
+
+        # Access the specified bucket
+        bucket = client.get_bucket(bucket_name)
+
+        # Try to access the file
+        blob = bucket.blob(file_name)
+
+        return True
+    except Exception as e:
+        print(f"Error: {e}")
+        return False
 
 # Define a route for creating footnotes
 
@@ -49,8 +71,9 @@ def create_footnotes():
     if not template:
         return jsonify({"error": "Template parameter is missing!"}), 400
 
-        # Try to access the file
-        blob = bucket.blob(file_name)
+    # Build prompt using the provided template
+    QA_CHAIN_PROMPT = PromptTemplate(
+        input_variables=["context", "question"], template=template)
 
     # Run the RetrievalQA chain with the provided prompt
     qa_chain = RetrievalQA.from_chain_type(llm,
@@ -61,6 +84,7 @@ def create_footnotes():
     # Return the result as a JSON response
     return jsonify(result["result"])
 
+
 @app.route('/')
 def check_access():
     if check_bucket_file_access(bucket_name, file_name):
@@ -69,5 +93,4 @@ def check_access():
         return "Access to file failed."
 
 if __name__ == '__main__':
-    app.debug = True
-    app.run()
+    app.run(debug=True)
