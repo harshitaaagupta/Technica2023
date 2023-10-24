@@ -1,2 +1,5 @@
-google-cloud-storage 
 langchain
+openai
+chromadb
+tiktoken
+pypdf

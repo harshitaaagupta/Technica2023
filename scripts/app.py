@@ -13,7 +13,7 @@ from flask_cors import CORS
 os.environ["OPENAI_API_KEY"] = "your-openai-api-key"
 
 # Load documents from specified directory
-loader = PyPDFDirectoryLoader(path='path/to/your/pdf/directory')
+loader = PyPDFDirectoryLoader(path='./datasets/')
 data = loader.load()
 
 # Initialize text splitter with specified chunk size and overlap
